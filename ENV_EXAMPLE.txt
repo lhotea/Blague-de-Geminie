@@ -1,0 +1,10 @@
+# Fichier d'exemple pour la configuration
+# 
+# INSTRUCTIONS :
+# 1. Copie ce fichier et renomme-le en ".env" (avec le point au début)
+# 2. Remplace "sk-ta-cle-api-ici" par ta vraie clé API OpenAI
+# 3. Le fichier .env est déjà dans .gitignore, donc il ne sera jamais partagé
+#
+# IMPORTANT : Ne partage JAMAIS ton fichier .env avec quelqu'un !
+
+OPENAI_API_KEY=sk-ta-cle-api-ici

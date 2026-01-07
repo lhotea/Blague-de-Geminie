@@ -1,0 +1,9 @@
+# Format : Date, Activité, Durée, Distance
+# Les lignes commençant par # sont ignorées
+
+2024-01-15, Course à pied, 1h30, 15km
+2024-01-16, Ski de fond, 2h00, 20km
+2024-01-17, Course à pied, 1h00, 10km
+2024-01-18, Ski de fond, 2h30, 25km
+2024-01-20, Course à pied, 2h00, 20km
+2024-01-22, Ski de fond, 3h00, 30km
