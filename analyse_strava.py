@@ -11,6 +11,7 @@ import os
 from collections import defaultdict
 from openai import OpenAI
 from dotenv import load_dotenv
+import streamlit as st
 
 
 def parser_donnees_strava(texte_brut):
@@ -345,13 +346,12 @@ def generer_feedback_coach(stats):
     basé sur les statistiques d'entraînement
     """
     # Charger la clé API depuis .env
-    load_dotenv()
-    api_key = os.getenv("OPENAI_API_KEY")
-    
-    if not api_key:
-        print("⚠️  Clé API OpenAI non trouvée dans .env")
-        return None
-    
+    #load_dotenv()
+    # api_key = os.getenv("OPENAI_API_KEY")
+    # Remplace l'ancienne ligne client = OpenAI(api_key="sk-...") par :
+    # 
+
+    api_key = st.secrets["OPENAI_API_KEY"]
     client = OpenAI(api_key=api_key)
     
     # Préparer le prompt avec les stats
