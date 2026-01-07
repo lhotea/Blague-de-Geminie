@@ -1,5 +1,6 @@
 # Fichiers de configuration sensibles
 .env
+.streamlit/
 
 # Fichiers Python
 __pycache__/

@@ -254,7 +254,11 @@ def parser_format_simple(ligne):
     distance_str = parties[3] if len(parties) > 3 else None
     
     # Conversion de la durée
+    # Essayer d'abord parser_duree, puis parser_duree_strava si ça échoue
     duree_heures = parser_duree(duree_str)
+    if duree_heures == 0.0 and ':' in duree_str:
+        # Si parser_duree n'a pas fonctionné et qu'il y a des ':', essayer parser_duree_strava
+        duree_heures = parser_duree_strava(duree_str)
     
     # Conversion de la distance
     distance_km = parser_distance(distance_str) if distance_str else None
