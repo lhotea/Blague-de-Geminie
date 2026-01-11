@@ -407,7 +407,7 @@ def afficher_analyse(donnees_texte, source="fichier"):
             height=400,
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Graphique en camembert pour la répartition en pourcentage
         st.markdown("---")
@@ -447,7 +447,7 @@ def afficher_analyse(donnees_texte, source="fichier"):
         # Afficher le graphique en camembert avec un tableau récapitulatif
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width='stretch')
         with col2:
             st.markdown("### 📊 Détails")
             for _, row in activites_df_pourcent.iterrows():
@@ -506,7 +506,7 @@ def afficher_analyse(donnees_texte, source="fichier"):
                     height=500,
                     showlegend=True
                 )
-                st.plotly_chart(fig_scatter, use_container_width=True)
+                st.plotly_chart(fig_scatter, width='stretch')
                 
                 # Statistiques sur l'impact de la température
                 if len(df_meteo) > 1:
@@ -558,7 +558,11 @@ def afficher_analyse(donnees_texte, source="fichier"):
             
             if not temps_semaine.empty:
                 st.write("\n**Temps par semaine :**")
-                st.dataframe(temps_semaine, use_container_width=True)
+                st.dataframe(temps_semaine, width='stretch')
+        
+        # Stocker le DataFrame dans session_state pour le chatbot
+        st.session_state['df_analyse'] = df
+        st.session_state['analyse_complete'] = True
 
 
 # Afficher les données Strava si disponibles
@@ -698,7 +702,7 @@ if uploaded_file is not None:
         # Afficher un aperçu
         st.success(f"✅ Fichier chargé : {uploaded_file.name} ({file_extension.upper()})")
         st.markdown("**📊 Aperçu des données (5 premières lignes) :**")
-        st.dataframe(df_csv.head(5), use_container_width=True)
+        st.dataframe(df_csv.head(5), width='stretch')
         
         # Convertir en format texte pour le parser
         donnees_texte = csv_to_text_format(df_csv)
@@ -712,3 +716,124 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
         st.info("💡 Assure-toi que ton fichier (CSV ou Excel) contient les colonnes : Date, Activité, Durée, Distance")
+
+
+# Fonction pour convertir un DataFrame en CSV string pour le contexte IA
+def df_to_csv_string(df, max_rows=100):
+    """Convertit un DataFrame en string CSV pour le contexte de l'IA"""
+    if df.empty:
+        return "Aucune donnée disponible."
+    
+    # Sélectionner les colonnes pertinentes
+    colonnes = ['Date', 'Activité', 'Durée (h)', 'Distance (km)']
+    if 'Température (°C)' in df.columns:
+        colonnes.append('Température (°C)')
+    if 'Précipitations (mm)' in df.columns:
+        colonnes.append('Précipitations (mm)')
+    if 'Vitesse vent (km/h)' in df.columns:
+        colonnes.append('Vitesse vent (km/h)')
+    
+    # Filtrer les colonnes qui existent
+    colonnes_existantes = [col for col in colonnes if col in df.columns]
+    df_subset = df[colonnes_existantes].copy()
+    
+    # Limiter le nombre de lignes pour éviter un contexte trop long
+    if len(df_subset) > max_rows:
+        df_subset = df_subset.head(max_rows)
+    
+    # Convertir en CSV string
+    csv_str = df_subset.to_csv(index=False)
+    
+    # Ajouter un résumé si on a limité les lignes
+    if len(df) > max_rows:
+        csv_str += f"\n\n(Note: Affichage des {max_rows} premières activités sur {len(df)} totales)"
+    
+    return csv_str
+
+
+# Fonction pour gérer le chatbot
+def afficher_chatbot():
+    """Affiche le module de chatbot interactif"""
+    if 'df_analyse' not in st.session_state or st.session_state.get('analyse_complete', False) == False:
+        return
+    
+    df = st.session_state['df_analyse']
+    
+    st.markdown("---")
+    st.subheader("💬 Coach Assistant - Chat Interactif")
+    st.markdown("Pose des questions sur tes entraînements et reçois des conseils personnalisés !")
+    
+    # Initialiser l'historique du chat
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    
+    # Afficher l'historique des messages
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    # Récupérer la question de l'utilisateur
+    if prompt := st.chat_input("Pose une question à ton coach..."):
+        # Ajouter la question de l'utilisateur à l'historique
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        
+        # Afficher la question
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Préparer le contexte avec les données
+        donnees_csv = df_to_csv_string(df)
+        
+        # Préparer le system prompt
+        system_prompt = f"""Tu es un coach de triathlon expert. Tu as accès aux données d'entraînement suivantes :
+
+{donnees_csv}
+
+Réponds aux questions de l'athlète de manière précise, motivante et un peu sarcastique. Si la réponse nécessite un calcul, fais-le. Utilise les données fournies pour donner des conseils personnalisés."""
+        
+        # Préparer les messages pour l'API
+        messages = [
+            {"role": "system", "content": system_prompt}
+        ]
+        
+        # Ajouter l'historique (limité aux 10 derniers messages pour éviter les tokens)
+        for msg in st.session_state.chat_history[-10:]:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+        
+        # Envoyer la requête à OpenAI
+        with st.chat_message("assistant"):
+            with st.spinner("Le coach réfléchit..."):
+                try:
+                    # Récupérer la clé API depuis st.secrets (comme dans analyse_strava.py)
+                    api_key = st.secrets["OPENAI_API_KEY"]
+                    client = OpenAI(api_key=api_key)
+                    
+                    response = client.chat.completions.create(
+                        model="gpt-5-nano",
+                        messages=messages,
+                        max_completion_tokens=20000
+                    )
+                    
+                    assistant_response = response.choices[0].message.content
+                    
+                    # Vérifier si la réponse est vide (comme pour le script de blague)
+                    if assistant_response is None or assistant_response.strip() == "":
+                        st.warning("⚠️ La réponse du coach est vide.")
+                        st.info("💡 GPT-5-nano utilise des tokens pour réfléchir. Si tous les tokens sont utilisés pour le raisonnement, il n'en reste plus pour la réponse.")
+                        assistant_response = "Désolé, je n'ai pas pu générer de réponse complète. Peux-tu reformuler ta question de manière plus courte ?"
+                    
+                    # Afficher la réponse
+                    st.markdown(assistant_response)
+                    
+                    # Ajouter la réponse à l'historique
+                    st.session_state.chat_history.append({"role": "assistant", "content": assistant_response})
+                    
+                except Exception as e:
+                    error_msg = f"❌ Erreur : {e}"
+                    st.error(error_msg)
+                    st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
+
+
+# Afficher le chatbot si des données ont été analysées
+if st.session_state.get('analyse_complete', False):
+    afficher_chatbot()
