@@ -1,0 +1,4 @@
+Nordic Ski	Sun, 1/4/2026	Morning Ski	5:04	1.13 km	11 m
+Run	Mon, 1/5/2026	Evening Run	1:30:45	15.5 km	50 m
+Ride	Tue, 1/6/2026	Bike Ride	2:15:30	45.2 km	200 m
+Weight Training	Wed, 1/7/2026	Gym Session	1:00:00	0 km	0 m

@@ -34,7 +34,136 @@ from analyse_strava import (
     generer_feedback_coach
 )
 
-# Fonction pour obtenir un access_token Strava
+# ===== OAUTH FLOW FUNCTIONS =====
+
+def generer_url_autorisation_strava():
+    """Génère l'URL d'autorisation OAuth Strava"""
+    try:
+        client_id = st.secrets["STRAVA_CLIENT_ID"]
+
+        # Obtenir l'URL actuelle de l'application
+        # En local: http://localhost:8501
+        # En production Streamlit Cloud: https://[app-name].streamlit.app
+        try:
+            # Essayer d'obtenir l'URL depuis les secrets (meilleure pratique)
+            redirect_uri = st.secrets.get("REDIRECT_URI", None)
+        except:
+            redirect_uri = None
+
+        # Si pas dans les secrets, utiliser l'URL actuelle
+        if not redirect_uri:
+            # Par défaut pour le développement local
+            redirect_uri = "http://localhost:8501"
+            # Note: En production, ajouter REDIRECT_URI dans st.secrets
+            # Exemple: REDIRECT_URI = "https://your-app.streamlit.app"
+
+        # Construire l'URL d'autorisation
+        auth_url = (
+            f"https://www.strava.com/oauth/authorize?"
+            f"client_id={client_id}&"
+            f"response_type=code&"
+            f"redirect_uri={redirect_uri}&"
+            f"approval_prompt=force&"
+            f"scope=activity:read_all"
+        )
+        return auth_url
+    except KeyError as e:
+        st.error(f"❌ Configuration manquante : {e}")
+        return None
+
+
+def echanger_code_contre_token(code):
+    """Échange le code d'autorisation contre un access_token"""
+    try:
+        client_id = st.secrets["STRAVA_CLIENT_ID"]
+        client_secret = st.secrets["STRAVA_CLIENT_SECRET"]
+
+        url = "https://www.strava.com/oauth/token"
+        payload = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "code": code,
+            "grant_type": "authorization_code"
+        }
+
+        response = requests.post(url, data=payload, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        return {
+            "access_token": data.get("access_token"),
+            "refresh_token": data.get("refresh_token"),
+            "expires_at": data.get("expires_at"),
+            "athlete": data.get("athlete")
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Erreur lors de l'échange du code : {e}")
+        return None
+    except Exception as e:
+        st.error(f"❌ Erreur inattendue : {e}")
+        return None
+
+
+def rafraichir_access_token(refresh_token):
+    """Rafraîchit l'access_token avec un refresh_token"""
+    try:
+        client_id = st.secrets["STRAVA_CLIENT_ID"]
+        client_secret = st.secrets["STRAVA_CLIENT_SECRET"]
+
+        url = "https://www.strava.com/oauth/token"
+        payload = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token"
+        }
+
+        response = requests.post(url, data=payload, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        return {
+            "access_token": data.get("access_token"),
+            "refresh_token": data.get("refresh_token"),
+            "expires_at": data.get("expires_at")
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Erreur lors du rafraîchissement du token : {e}")
+        return None
+    except Exception as e:
+        st.error(f"❌ Erreur inattendue : {e}")
+        return None
+
+
+# ===== GESTION DU CALLBACK OAUTH =====
+
+# Vérifier si on revient d'une autorisation OAuth (code dans l'URL)
+if "code" in st.query_params:
+    code = st.query_params["code"]
+
+    with st.spinner("🔐 Authentification en cours..."):
+        # Échanger le code contre un access_token
+        token_data = echanger_code_contre_token(code)
+
+        if token_data and token_data.get("access_token"):
+            # Stocker les tokens dans session_state
+            st.session_state["strava_access_token"] = token_data["access_token"]
+            st.session_state["strava_refresh_token"] = token_data["refresh_token"]
+            st.session_state["strava_expires_at"] = token_data["expires_at"]
+            st.session_state["strava_athlete"] = token_data.get("athlete", {})
+            st.session_state["strava_connected"] = True
+
+            # Nettoyer l'URL (enlever le code)
+            st.query_params.clear()
+            st.success("✅ Connexion réussie !")
+            st.rerun()
+        else:
+            st.error("❌ Impossible de se connecter à Strava")
+            st.query_params.clear()
+
+# ===== END OAUTH FLOW =====
+
+# Fonction pour obtenir un access_token Strava (DEPRECATED - keeping for backward compatibility)
 def obtenir_access_token_strava():
     """Obtient un access_token frais depuis Strava en utilisant le refresh_token"""
     try:
@@ -66,6 +195,33 @@ def obtenir_access_token_strava():
         return None
 
 
+# Fonction pour obtenir l'access_token actif (depuis session ou refresh)
+def obtenir_access_token_actif():
+    """Obtient un access_token actif, rafraîchit si nécessaire"""
+    # Vérifier si on a un token en session
+    if "strava_access_token" in st.session_state and "strava_expires_at" in st.session_state:
+        # Vérifier si le token est toujours valide
+        current_time = int(time.time())
+        expires_at = st.session_state["strava_expires_at"]
+
+        # Si le token expire dans moins de 5 minutes, le rafraîchir
+        if current_time < (expires_at - 300):
+            return st.session_state["strava_access_token"]
+
+        # Token expiré ou proche de l'expiration, le rafraîchir
+        if "strava_refresh_token" in st.session_state:
+            with st.spinner("🔄 Rafraîchissement du token..."):
+                token_data = rafraichir_access_token(st.session_state["strava_refresh_token"])
+
+                if token_data and token_data.get("access_token"):
+                    st.session_state["strava_access_token"] = token_data["access_token"]
+                    st.session_state["strava_refresh_token"] = token_data["refresh_token"]
+                    st.session_state["strava_expires_at"] = token_data["expires_at"]
+                    return token_data["access_token"]
+
+    return None
+
+
 # Fonction pour récupérer les activités Strava
 def recuperer_activites_strava(access_token, per_page=50):
     """Récupère les activités depuis l'API Strava"""
@@ -73,10 +229,10 @@ def recuperer_activites_strava(access_token, per_page=50):
         url = "https://www.strava.com/api/v3/athlete/activities"
         headers = {"Authorization": f"Bearer {access_token}"}
         params = {"per_page": per_page}
-        
+
         response = requests.get(url, headers=headers, params=params, timeout=10)
         response.raise_for_status()
-        
+
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"❌ Erreur lors de la récupération des activités : {e}")
@@ -298,33 +454,66 @@ with col1:
 
 with col2:
     st.markdown("### 🔗 Connexion Strava")
-    if st.button("🔐 Connexion Strava Directe", type="primary", use_container_width=True):
-        with st.spinner("Connexion à Strava en cours..."):
-            # Obtenir l'access_token
-            access_token = obtenir_access_token_strava()
-            
-            if access_token:
-                st.success("✅ Connexion réussie !")
-                
-                # Récupérer les activités
-                with st.spinner("Récupération des activités..."):
+
+    # Vérifier si l'utilisateur est déjà connecté
+    if st.session_state.get("strava_connected", False):
+        # Afficher l'info de l'athlète connecté
+        athlete = st.session_state.get("strava_athlete", {})
+        athlete_name = athlete.get("firstname", "Athlète")
+        st.success(f"✅ Connecté en tant que **{athlete_name}**")
+
+        # Bouton pour récupérer les activités
+        if st.button("📥 Récupérer mes activités", type="primary", use_container_width=True):
+            with st.spinner("Récupération des activités..."):
+                # Obtenir un access_token actif
+                access_token = obtenir_access_token_actif()
+
+                if access_token:
                     activites = recuperer_activites_strava(access_token, per_page=50)
-                
-                if activites:
-                    st.success(f"✅ {len(activites)} activités récupérées")
-                    
-                    # Convertir en format texte
-                    donnees_texte = strava_api_to_text_format(activites)
-                    
-                    # Stocker dans session_state pour l'analyse (données brutes pour la météo)
-                    st.session_state['donnees_strava'] = donnees_texte
-                    st.session_state['activites_strava_brutes'] = activites  # Pour les coordonnées
-                    st.session_state['nb_activites_strava'] = len(activites)
-                    st.rerun()
+
+                    if activites:
+                        st.success(f"✅ {len(activites)} activités récupérées")
+
+                        # Convertir en format texte
+                        donnees_texte = strava_api_to_text_format(activites)
+
+                        # Stocker dans session_state pour l'analyse
+                        st.session_state['donnees_strava'] = donnees_texte
+                        st.session_state['activites_strava_brutes'] = activites
+                        st.session_state['nb_activites_strava'] = len(activites)
+                        st.rerun()
+                    else:
+                        st.error("❌ Impossible de récupérer les activités")
                 else:
-                    st.error("❌ Impossible de récupérer les activités")
-            else:
-                st.error("❌ Impossible de se connecter à Strava")
+                    st.error("❌ Token expiré, veuillez vous reconnecter")
+                    st.session_state["strava_connected"] = False
+                    st.rerun()
+
+        # Bouton de déconnexion
+        if st.button("🚪 Se déconnecter", use_container_width=True):
+            # Nettoyer la session
+            for key in list(st.session_state.keys()):
+                if key.startswith("strava_"):
+                    del st.session_state[key]
+            st.rerun()
+
+    else:
+        # Générer l'URL d'autorisation OAuth
+        auth_url = generer_url_autorisation_strava()
+
+        if auth_url:
+            st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
+            # Afficher le lien OAuth
+            st.markdown(
+                f'<a href="{auth_url}" target="_self" style="display: inline-block; '
+                f'padding: 0.5rem 1rem; background-color: #FC4C02; color: white; '
+                f'text-decoration: none; border-radius: 0.25rem; font-weight: 600; '
+                f'text-align: center; width: 100%;">🔐 Se connecter avec Strava</a>',
+                unsafe_allow_html=True
+            )
+            st.caption("Tu seras redirigé vers Strava pour autoriser l'accès à tes activités.")
+        else:
+            st.error("❌ Configuration OAuth manquante")
 
 # Fonction réutilisable pour afficher l'analyse
 def afficher_analyse(donnees_texte, source="fichier"):
