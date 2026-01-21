@@ -36,26 +36,26 @@ from analyse_strava import (
 
 # ===== OAUTH FLOW FUNCTIONS =====
 
+def obtenir_redirect_uri():
+    """Obtient l'URL de redirection de manière cohérente"""
+    try:
+        # Essayer d'obtenir depuis les secrets
+        redirect_uri = st.secrets.get("REDIRECT_URI", None)
+    except:
+        redirect_uri = None
+
+    # Si pas dans les secrets, utiliser localhost par défaut
+    if not redirect_uri:
+        redirect_uri = "http://localhost:8501"
+
+    return redirect_uri
+
+
 def generer_url_autorisation_strava():
     """Génère l'URL d'autorisation OAuth Strava"""
     try:
         client_id = st.secrets["STRAVA_CLIENT_ID"]
-
-        # Obtenir l'URL actuelle de l'application
-        # En local: http://localhost:8501
-        # En production Streamlit Cloud: https://[app-name].streamlit.app
-        try:
-            # Essayer d'obtenir l'URL depuis les secrets (meilleure pratique)
-            redirect_uri = st.secrets.get("REDIRECT_URI", None)
-        except:
-            redirect_uri = None
-
-        # Si pas dans les secrets, utiliser l'URL actuelle
-        if not redirect_uri:
-            # Par défaut pour le développement local
-            redirect_uri = "http://localhost:8501"
-            # Note: En production, ajouter REDIRECT_URI dans st.secrets
-            # Exemple: REDIRECT_URI = "https://your-app.streamlit.app"
+        redirect_uri = obtenir_redirect_uri()
 
         # Construire l'URL d'autorisation
         auth_url = (
@@ -77,13 +77,15 @@ def echanger_code_contre_token(code):
     try:
         client_id = st.secrets["STRAVA_CLIENT_ID"]
         client_secret = st.secrets["STRAVA_CLIENT_SECRET"]
+        redirect_uri = obtenir_redirect_uri()
 
         url = "https://www.strava.com/oauth/token"
         payload = {
             "client_id": client_id,
             "client_secret": client_secret,
             "code": code,
-            "grant_type": "authorization_code"
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri  # IMPORTANT: Doit être identique à l'autorisation
         }
 
         response = requests.post(url, data=payload, timeout=10)
@@ -98,6 +100,7 @@ def echanger_code_contre_token(code):
         }
     except requests.exceptions.RequestException as e:
         st.error(f"❌ Erreur lors de l'échange du code : {e}")
+        st.error(f"Détails de l'erreur : {response.text if 'response' in locals() else 'N/A'}")
         return None
     except Exception as e:
         st.error(f"❌ Erreur inattendue : {e}")
@@ -512,8 +515,60 @@ with col2:
                 unsafe_allow_html=True
             )
             st.caption("Tu seras redirigé vers Strava pour autoriser l'accès à tes activités.")
+
+            # Aide de dépannage
+            with st.expander("🔧 Problème de connexion ? (Lire si erreur)"):
+                st.markdown("""
+                ### ⚠️ Erreur "Max challenge attempts exceeded" ?
+
+                **Causes principales:**
+                1. **Authorization Callback Domain mal configuré sur Strava**
+                   - Doit être: `localhost` (PAS `http://localhost:8501`)
+                   - Va sur https://www.strava.com/settings/api
+                   - Vérifie le champ "Authorization Callback Domain"
+
+                2. **Redirect URI incorrect dans les secrets**
+                   - Doit être: `http://localhost:8501` (URL complète)
+                   - Vérifie `.streamlit/secrets.toml`
+
+                3. **Trop de tentatives rapides**
+                   - Attends 5-10 minutes avant de réessayer
+                   - Efface les cookies de ton navigateur
+                   - Utilise une fenêtre de navigation privée
+
+                ### ✅ Configuration Correcte
+
+                **Sur Strava (https://www.strava.com/settings/api):**
+                ```
+                Authorization Callback Domain: localhost
+                ```
+
+                **Dans .streamlit/secrets.toml:**
+                ```toml
+                STRAVA_CLIENT_ID = "123456"
+                STRAVA_CLIENT_SECRET = "ton_secret"
+                REDIRECT_URI = "http://localhost:8501"
+                ```
+
+                ### 🔍 Debug Info
+                """)
+
+                # Afficher les informations de debug
+                try:
+                    client_id = st.secrets.get("STRAVA_CLIENT_ID", "NON CONFIGURÉ")
+                    redirect_uri = obtenir_redirect_uri()
+                    st.code(f"""
+Client ID: {client_id}
+Redirect URI: {redirect_uri}
+URL OAuth générée:
+{auth_url}
+                    """)
+                    st.info("📖 Guide complet: Consulte le fichier `STRAVA_OAUTH_DEBUG.md`")
+                except Exception as e:
+                    st.error(f"Erreur lors de la lecture de la config: {e}")
         else:
             st.error("❌ Configuration OAuth manquante")
+            st.warning("Vérifie que STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET sont dans tes secrets")
 
 # Fonction réutilisable pour afficher l'analyse
 def afficher_analyse(donnees_texte, source="fichier"):
