@@ -349,15 +349,6 @@ def generer_feedback_coach(stats):
     Génère un feedback sarcastique et drôle avec GPT-5-nano
     basé sur les statistiques d'entraînement
     """
-    # Charger la clé API depuis .env
-    #load_dotenv()
-    # api_key = os.getenv("OPENAI_API_KEY")
-    # Remplace l'ancienne ligne client = OpenAI(api_key="sk-...") par :
-    # 
-
-    api_key = st.secrets["OPENAI_API_KEY"]
-    client = OpenAI(api_key=api_key)
-    
     # Préparer le prompt avec les stats
     prompt = f"""Analyse ces statistiques d'entraînement et rédige un message de feedback court (3-4 phrases max) pour l'athlète.
 
@@ -373,6 +364,13 @@ Statistiques :
 Sois TRÈS sarcastique, drôle, avec de l'humour piquant. Utilise des métaphores, des comparaisons amusantes. Sois direct mais constructif. Mentionne les points forts et les points à améliorer de manière humoristique et mémorable."""
 
     try:
+        # Charger la clé API depuis .env
+        #load_dotenv()
+        # api_key = os.getenv("OPENAI_API_KEY")
+        # Remplace l'ancienne ligne client = OpenAI(api_key="sk-...") par :
+        #
+        api_key = st.secrets["OPENAI_API_KEY"]
+        client = OpenAI(api_key=api_key)
         print("\n🤖 Demande de feedback au coach GPT...")
         response = client.chat.completions.create(
             model="gpt-5-nano",

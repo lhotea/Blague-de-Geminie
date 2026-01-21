@@ -342,11 +342,10 @@ class TestGenererFeedbackCoach:
             assert 'Nombre d\'activités : 0' in user_message
 
     def test_client_initialization_error(self, sample_stats):
-        """Test that OpenAI client initialization errors are raised (not caught)
+        """Test handling of OpenAI client initialization errors
 
-        Note: The current implementation does not catch client initialization errors
-        because the OpenAI() call is outside the try-except block. This test documents
-        this behavior - initialization errors will propagate to the caller.
+        The OpenAI client initialization is now inside the try-except block,
+        so initialization errors are caught and the function returns None.
         """
         with patch('analyse_strava.st') as mock_st, \
              patch('analyse_strava.OpenAI') as mock_openai_class:
@@ -354,9 +353,22 @@ class TestGenererFeedbackCoach:
             mock_st.secrets = {"OPENAI_API_KEY": "test-key"}
             mock_openai_class.side_effect = Exception("Failed to initialize OpenAI client")
 
-            # Client initialization errors are not caught, so they will raise
-            with pytest.raises(Exception, match="Failed to initialize OpenAI client"):
-                generer_feedback_coach(sample_stats)
+            result = generer_feedback_coach(sample_stats)
+
+            # Client initialization errors are now caught, should return None
+            assert result is None
+
+    def test_missing_api_key_in_secrets(self, sample_stats):
+        """Test handling when API key is missing from st.secrets"""
+        with patch('analyse_strava.st') as mock_st:
+
+            # Mock secrets without OPENAI_API_KEY
+            mock_st.secrets = {}
+
+            result = generer_feedback_coach(sample_stats)
+
+            # Should return None when API key is missing
+            assert result is None
 
     def test_response_format(self, sample_stats):
         """Test that response format is correctly extracted"""
