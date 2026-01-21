@@ -4,6 +4,7 @@ Analyse des données Strava avec feedback sarcastique par GPT-5-nano
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import os
@@ -506,15 +507,42 @@ with col2:
 
         if auth_url:
             st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
-            # Afficher le lien OAuth
-            st.markdown(
-                f'<a href="{auth_url}" target="_self" style="display: inline-block; '
-                f'padding: 0.5rem 1rem; background-color: #FC4C02; color: white; '
-                f'text-decoration: none; border-radius: 0.25rem; font-weight: 600; '
-                f'text-align: center; width: 100%;">🔐 Se connecter avec Strava</a>',
-                unsafe_allow_html=True
+
+            # Solution 1: Bouton HTML avec redirection JavaScript automatique
+            components.html(
+                f"""
+                <style>
+                    .strava-button {{
+                        display: inline-block;
+                        padding: 0.75rem 1.5rem;
+                        background-color: #FC4C02;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 0.5rem;
+                        font-weight: 600;
+                        font-size: 1rem;
+                        text-align: center;
+                        cursor: pointer;
+                        border: none;
+                        width: 100%;
+                        transition: background-color 0.2s;
+                    }}
+                    .strava-button:hover {{
+                        background-color: #E63E00;
+                    }}
+                </style>
+                <a href="{auth_url}" class="strava-button" onclick="window.top.location.href='{auth_url}'; return false;">
+                    🔐 Se connecter avec Strava
+                </a>
+                """,
+                height=80
             )
+
             st.caption("Tu seras redirigé vers Strava pour autoriser l'accès à tes activités.")
+
+            # Solution alternative : Lien direct cliquable
+            st.markdown("**Ou clique directement sur ce lien :**")
+            st.markdown(f"🔗 [{auth_url}]({auth_url})")
 
             # Aide de dépannage
             with st.expander("🔧 Problème de connexion ? (Lire si erreur)"):
