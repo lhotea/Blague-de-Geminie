@@ -543,12 +543,21 @@ with col2:
 
         if auth_url:
             st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
-            # Bouton Streamlit + redirection JS (escape iframe)
-            if st.button("Connect with Strava", type="primary", use_container_width=True):
-                js = f"<script>window.top.location.href = '{auth_url}'</script>"
-                components.html(js, height=0, width=0)
-                st.write("Redirecting to Strava...")
-            st.caption("Tu seras redirigé vers Strava pour autoriser l'accès à tes activités.")
+            st.caption("Si rien ne se passe au clic, copie l'URL ci-dessous et ouvre-la dans le même onglet.")
+
+            # Lien OAuth (target _top pour sortir d'un éventuel iframe)
+            st.markdown(
+                f'<a href="{auth_url}" target="_top" '
+                f'style="display: inline-block; padding: 10px 20px; '
+                f'background-color: #FC4C02; color: white; text-decoration: none; '
+                f'border-radius: 5px; font-family: sans-serif; font-weight: bold;">'
+                f'Connect with Strava</a>',
+                unsafe_allow_html=True
+            )
+
+            # URL à copier si besoin
+            st.text_input("OAuth URL (copier-coller si besoin)", value=auth_url, key="oauth_url_display")
+            st.caption("Ouvre ce lien dans le même onglet pour éviter les boucles OAuth.")
 
             # Aide de dépannage
             with st.expander("🔧 Problème de connexion ? (Lire si erreur)"):
