@@ -542,18 +542,15 @@ with col2:
 
         if auth_url:
             st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
-            # Afficher le lien OAuth (même onglet)
-            if hasattr(st, "link_button"):
-                st.link_button("🔐 Se connecter avec Strava", auth_url, type="primary")
-            else:
-                st.markdown(
-                    f'<a href="{auth_url}" target="_self" '
-                    f'style="display: inline-block; padding: 0.5rem 1rem; '
-                    f'background-color: #FC4C02; color: white; text-decoration: none; '
-                    f'border-radius: 0.25rem; font-weight: 600; text-align: center; '
-                    f'width: 100%;">🔐 Se connecter avec Strava</a>',
-                    unsafe_allow_html=True
-                )
+            # Afficher le lien OAuth en même onglet (forcer target _self)
+            st.markdown(
+                f'<a href="{auth_url}" target="_self" '
+                f'style="display: inline-block; padding: 0.5rem 1rem; '
+                f'background-color: #FC4C02; color: white; text-decoration: none; '
+                f'border-radius: 0.25rem; font-weight: 600; text-align: center; '
+                f'width: 100%;">🔐 Se connecter avec Strava</a>',
+                unsafe_allow_html=True
+            )
             st.caption("Tu seras redirigé vers Strava pour autoriser l'accès à tes activités.")
 
             # Aide de dépannage
