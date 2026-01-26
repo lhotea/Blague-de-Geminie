@@ -13,6 +13,7 @@ import plotly.express as px
 import requests
 from datetime import datetime
 import time
+import subprocess
 
 # Configuration de la page
 st.set_page_config(
@@ -1116,3 +1117,27 @@ Réponds aux questions de l'athlète de manière précise, motivante et un peu s
 # Afficher le chatbot si des données ont été analysées
 if st.session_state.get('analyse_complete', False):
     afficher_chatbot()
+
+
+# Afficher l'horodatage et le commit en bas de page
+def get_git_commit():
+    """Retourne le hash court du dernier commit si disponible."""
+    # Priorité à une variable d'env si définie (déploiement)
+    env_commit = os.getenv("GIT_COMMIT")
+    if env_commit:
+        return env_commit[:7]
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+        return commit
+    except Exception:
+        return "unknown"
+
+
+st.markdown("---")
+build_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+commit_id = get_git_commit()
+st.caption(f"🕒 Build time: {build_time} | 🧾 Commit: {commit_id}")
