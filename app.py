@@ -48,6 +48,17 @@ def obtenir_redirect_uri():
     if not redirect_uri:
         redirect_uri = "http://localhost:8501"
 
+    # Normaliser l'URL (éviter les boucles OAuth dues aux mismatchs)
+    redirect_uri = redirect_uri.strip()
+    # Forcer https en production (Streamlit Cloud)
+    if redirect_uri.startswith("http://") and "localhost" not in redirect_uri:
+        redirect_uri = redirect_uri.replace("http://", "https://", 1)
+    # Ajouter le schéma si absent
+    if not redirect_uri.startswith(("http://", "https://")):
+        redirect_uri = f"https://{redirect_uri}"
+    # Supprimer le slash final pour cohérence
+    redirect_uri = redirect_uri.rstrip("/")
+
     return redirect_uri
 
 
@@ -99,8 +110,20 @@ def echanger_code_contre_token(code):
             "athlete": data.get("athlete")
         }
     except requests.exceptions.RequestException as e:
-        st.error(f"❌ Erreur lors de l'échange du code : {e}")
-        st.error(f"Détails de l'erreur : {response.text if 'response' in locals() else 'N/A'}")
+        response = getattr(e, "response", None)
+        status_code = response.status_code if response is not None else None
+        response_text = response.text if response is not None else "N/A"
+
+        # Message clair pour la limite d'athlètes connectés (Strava 403)
+        if status_code == 403 and "athlete" in response_text.lower():
+            st.error("❌ Erreur 403 : limite d'athlètes connectés dépassée.")
+            st.info(
+                "💡 Strava limite le nombre d'athlètes connectés pour les apps en mode développement. "
+                "Déconnecte des comptes de test ou demande une augmentation de quota dans Strava."
+            )
+        else:
+            st.error(f"❌ Erreur lors de l'échange du code : {e}")
+            st.error(f"Détails de l'erreur : {response_text}")
         return None
     except Exception as e:
         st.error(f"❌ Erreur inattendue : {e}")
@@ -238,7 +261,19 @@ def recuperer_activites_strava(access_token, per_page=50):
 
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"❌ Erreur lors de la récupération des activités : {e}")
+        response = getattr(e, "response", None)
+        status_code = response.status_code if response is not None else None
+        response_text = response.text if response is not None else "N/A"
+
+        if status_code == 403 and "athlete" in response_text.lower():
+            st.error("❌ Erreur 403 : limite d'athlètes connectés dépassée.")
+            st.info(
+                "💡 Strava limite le nombre d'athlètes connectés pour les apps en mode développement. "
+                "Déconnecte des comptes de test ou demande une augmentation de quota."
+            )
+        else:
+            st.error(f"❌ Erreur lors de la récupération des activités : {e}")
+            st.error(f"Détails de l'erreur : {response_text}")
         return None
     except Exception as e:
         st.error(f"❌ Erreur inattendue : {e}")
