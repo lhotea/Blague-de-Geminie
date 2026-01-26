@@ -4,6 +4,7 @@ Analyse des données Strava avec feedback sarcastique par GPT-5-nano
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import os
@@ -542,24 +543,11 @@ with col2:
 
         if auth_url:
             st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
-            # Afficher le lien OAuth en ciblant la fenêtre principale (escape iframe)
-            oauth_url = auth_url
-            st.markdown(
-                f'''
-                <a href="{oauth_url}" target="_top" style="
-                    text-decoration: none;
-                    background-color: #FC4C02;
-                    color: white;
-                    padding: 10px 20px;
-                    border-radius: 5px;
-                    font-family: sans-serif;
-                    font-weight: bold;
-                    display: inline-block;">
-                    Connect with Strava
-                </a>
-                ''',
-                unsafe_allow_html=True
-            )
+            # Bouton Streamlit + redirection JS (escape iframe)
+            if st.button("Connect with Strava", type="primary", use_container_width=True):
+                js = f"<script>window.top.location.href = '{auth_url}'</script>"
+                components.html(js, height=0, width=0)
+                st.write("Redirecting to Strava...")
             st.caption("Tu seras redirigé vers Strava pour autoriser l'accès à tes activités.")
 
             # Aide de dépannage
