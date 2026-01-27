@@ -535,11 +535,22 @@ else:
     if auth_url:
         st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
         
+        # Ouvrir l'auth Strava dans un nouvel onglet si demandé
+        ouvrir_nouvel_onglet = st.checkbox(
+            "Ouvrir la connexion Strava dans un nouvel onglet (utile sur le cloud)",
+            value=False
+        )
+        st.caption(
+            "Sur le cloud, ouvrir dans un nouvel onglet évite parfois une boucle "
+            "de redirection au retour."
+        )
+        target_attr = "_blank" if ouvrir_nouvel_onglet else "_top"
+
         # Lien OAuth simple et visible (fonctionne sur Streamlit Cloud)
         st.markdown(
             f"""
             <div style="margin: 20px 0; text-align: center;">
-                <a href="{auth_url}" target="_top" 
+                <a href="{auth_url}" target="{target_attr}" 
                    style="display: inline-block; padding: 14px 28px; 
                           background-color: #FC4C02; color: white; 
                           text-decoration: none; border-radius: 8px; 
