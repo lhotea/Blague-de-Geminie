@@ -598,19 +598,19 @@ else:
                 ### 🔍 Debug Info
                 """)
 
-                # Afficher les informations de debug
-                try:
-                    client_id = st.secrets.get("STRAVA_CLIENT_ID", "NON CONFIGURÉ")
-                    redirect_uri = obtenir_redirect_uri()
-                    st.code(f"""
+            # Afficher les informations de debug
+            try:
+                client_id = st.secrets.get("STRAVA_CLIENT_ID", "NON CONFIGURÉ")
+                redirect_uri = obtenir_redirect_uri()
+                st.code(f"""
 Client ID: {client_id}
 Redirect URI: {redirect_uri}
 URL OAuth générée:
 {auth_url}
-                    """)
-                    st.info("📖 Guide complet: Consulte le fichier `STRAVA_OAUTH_DEBUG.md`")
-                except Exception as e:
-                    st.error(f"Erreur lors de la lecture de la config: {e}")
+                """)
+                st.info("📖 Guide complet: Consulte le fichier `STRAVA_OAUTH_DEBUG.md`")
+            except Exception as e:
+                st.error(f"Erreur lors de la lecture de la config: {e}")
     else:
         st.error("❌ Configuration OAuth manquante")
         st.warning("Vérifie que STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET sont dans tes secrets")
