@@ -611,9 +611,9 @@ URL OAuth générée:
                     st.info("📖 Guide complet: Consulte le fichier `STRAVA_OAUTH_DEBUG.md`")
                 except Exception as e:
                     st.error(f"Erreur lors de la lecture de la config: {e}")
-        else:
-            st.error("❌ Configuration OAuth manquante")
-            st.warning("Vérifie que STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET sont dans tes secrets")
+    else:
+        st.error("❌ Configuration OAuth manquante")
+        st.warning("Vérifie que STRAVA_CLIENT_ID et STRAVA_CLIENT_SECRET sont dans tes secrets")
 
 # Fonction réutilisable pour afficher l'analyse
 def afficher_analyse(donnees_texte, source="fichier"):
