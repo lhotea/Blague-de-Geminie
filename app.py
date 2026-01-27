@@ -250,12 +250,18 @@ def obtenir_access_token_actif():
 
 
 # Fonction pour récupérer les activités Strava
-def recuperer_activites_strava(access_token, per_page=50):
-    """Récupère les activités depuis l'API Strava"""
+def recuperer_activites_strava(access_token, days=30):
+    """Récupère les activités des derniers jours depuis l'API Strava"""
     try:
         url = "https://www.strava.com/api/v3/athlete/activities"
         headers = {"Authorization": f"Bearer {access_token}"}
-        params = {"per_page": per_page}
+        now_ts = int(time.time())
+        after_ts = now_ts - (days * 24 * 60 * 60)
+        params = {
+            "after": after_ts,
+            "before": now_ts,
+            "per_page": 200
+        }
 
         response = requests.get(url, headers=headers, params=params, timeout=10)
         response.raise_for_status()
@@ -477,101 +483,87 @@ def strava_api_to_text_format(activites):
     return '\n'.join(lignes)
 
 
-# Interface : choix entre upload de fichier ou connexion Strava
-st.subheader("📊 Choisis ta méthode d'import")
+# Interface : connexion Strava (upload masqué)
+st.subheader("🔗 Connexion Strava")
 
-col1, col2 = st.columns(2)
+# Vérifier si l'utilisateur est déjà connecté
+if st.session_state.get("strava_connected", False):
+    # Afficher l'info de l'athlète connecté
+    athlete = st.session_state.get("strava_athlete", {})
+    athlete_name = athlete.get("firstname", "Athlète")
+    st.success(f"✅ Connecté en tant que **{athlete_name}**")
 
-with col1:
-    st.markdown("### 📁 Upload de fichier")
-    uploaded_file = st.file_uploader(
-        "Sélectionne un fichier CSV ou Excel",
-        type=['csv', 'xlsx'],
-        help="Le fichier doit contenir les colonnes : Date, Activité, Durée, Distance (ou format similaire)",
-        key="file_uploader"
-    )
+    # Bouton pour récupérer les activités
+    if st.button("📥 Récupérer mes activités (30 derniers jours)", type="primary", use_container_width=True):
+        with st.spinner("Récupération des activités..."):
+            # Obtenir un access_token actif
+            access_token = obtenir_access_token_actif()
 
-with col2:
-    st.markdown("### 🔗 Connexion Strava")
+            if access_token:
+                activites = recuperer_activites_strava(access_token, days=30)
 
-    # Vérifier si l'utilisateur est déjà connecté
-    if st.session_state.get("strava_connected", False):
-        # Afficher l'info de l'athlète connecté
-        athlete = st.session_state.get("strava_athlete", {})
-        athlete_name = athlete.get("firstname", "Athlète")
-        st.success(f"✅ Connecté en tant que **{athlete_name}**")
+                if activites:
+                    st.success(f"✅ {len(activites)} activités récupérées")
 
-        # Bouton pour récupérer les activités
-        if st.button("📥 Récupérer mes activités", type="primary", use_container_width=True):
-            with st.spinner("Récupération des activités..."):
-                # Obtenir un access_token actif
-                access_token = obtenir_access_token_actif()
+                    # Convertir en format texte
+                    donnees_texte = strava_api_to_text_format(activites)
 
-                if access_token:
-                    activites = recuperer_activites_strava(access_token, per_page=50)
-
-                    if activites:
-                        st.success(f"✅ {len(activites)} activités récupérées")
-
-                        # Convertir en format texte
-                        donnees_texte = strava_api_to_text_format(activites)
-
-                        # Stocker dans session_state pour l'analyse
-                        st.session_state['donnees_strava'] = donnees_texte
-                        st.session_state['activites_strava_brutes'] = activites
-                        st.session_state['nb_activites_strava'] = len(activites)
-                        st.rerun()
-                    else:
-                        st.error("❌ Impossible de récupérer les activités")
-                else:
-                    st.error("❌ Token expiré, veuillez vous reconnecter")
-                    st.session_state["strava_connected"] = False
+                    # Stocker dans session_state pour l'analyse
+                    st.session_state['donnees_strava'] = donnees_texte
+                    st.session_state['activites_strava_brutes'] = activites
+                    st.session_state['nb_activites_strava'] = len(activites)
                     st.rerun()
+                else:
+                    st.error("❌ Impossible de récupérer les activités")
+            else:
+                st.error("❌ Token expiré, veuillez vous reconnecter")
+                st.session_state["strava_connected"] = False
+                st.rerun()
 
-        # Bouton de déconnexion
-        if st.button("🚪 Se déconnecter", use_container_width=True):
-            # Nettoyer la session
-            for key in list(st.session_state.keys()):
-                if key.startswith("strava_"):
-                    del st.session_state[key]
-            st.rerun()
+    # Bouton de déconnexion
+    if st.button("🚪 Se déconnecter", use_container_width=True):
+        # Nettoyer la session
+        for key in list(st.session_state.keys()):
+            if key.startswith("strava_"):
+                del st.session_state[key]
+        st.rerun()
 
-    else:
-        # Générer l'URL d'autorisation OAuth
-        auth_url = generer_url_autorisation_strava()
+else:
+    # Générer l'URL d'autorisation OAuth
+    auth_url = generer_url_autorisation_strava()
 
-        if auth_url:
-            st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
-            
-            # Lien OAuth simple et visible (fonctionne sur Streamlit Cloud)
-            st.markdown(
-                f"""
-                <div style="margin: 20px 0; text-align: center;">
-                    <a href="{auth_url}" target="_top" 
-                       style="display: inline-block; padding: 14px 28px; 
-                              background-color: #FC4C02; color: white; 
-                              text-decoration: none; border-radius: 8px; 
-                              font-size: 18px; font-weight: bold; 
-                              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                              transition: all 0.2s;">
-                        🔐 Se connecter avec Strava
-                    </a>
-                </div>
-                <style>
-                    a:hover {{
-                        background-color: #E04302 !important;
-                        transform: translateY(-2px);
-                        box-shadow: 0 6px 8px rgba(0,0,0,0.15);
-                    }}
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
-            st.caption("Clique sur le lien ci-dessus pour autoriser l'accès à tes activités Strava.")
+    if auth_url:
+        st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
+        
+        # Lien OAuth simple et visible (fonctionne sur Streamlit Cloud)
+        st.markdown(
+            f"""
+            <div style="margin: 20px 0; text-align: center;">
+                <a href="{auth_url}" target="_top" 
+                   style="display: inline-block; padding: 14px 28px; 
+                          background-color: #FC4C02; color: white; 
+                          text-decoration: none; border-radius: 8px; 
+                          font-size: 18px; font-weight: bold; 
+                          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                          transition: all 0.2s;">
+                    🔐 Se connecter avec Strava
+                </a>
+            </div>
+            <style>
+                a:hover {{
+                    background-color: #E04302 !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.caption("Clique sur le lien ci-dessus pour autoriser l'accès à tes activités Strava.")
 
-            # Aide de dépannage
-            with st.expander("🔧 Problème de connexion ? (Lire si erreur)"):
-                st.markdown("""
+        # Aide de dépannage
+        with st.expander("🔧 Problème de connexion ? (Lire si erreur)"):
+            st.markdown("""
                 ### ⚠️ Erreur "Max challenge attempts exceeded" ?
 
                 **Causes principales:**
@@ -979,40 +971,6 @@ def csv_to_text_format(df_csv):
         lignes.append(ligne)
     
     return '\n'.join(lignes)
-
-# Afficher un aperçu si un fichier est chargé
-if uploaded_file is not None:
-    try:
-        # Détecter l'extension du fichier et utiliser la bonne fonction pandas
-        file_extension = uploaded_file.name.split('.')[-1].lower()
-        
-        if file_extension == 'csv':
-            # Lire le CSV
-            df_csv = pd.read_csv(uploaded_file)
-        elif file_extension == 'xlsx':
-            # Lire le fichier Excel
-            df_csv = pd.read_excel(uploaded_file)
-        else:
-            st.error(f"❌ Format de fichier non supporté : {file_extension}")
-            st.stop()
-        
-        # Afficher un aperçu
-        st.success(f"✅ Fichier chargé : {uploaded_file.name} ({file_extension.upper()})")
-        st.markdown("**📊 Aperçu des données (5 premières lignes) :**")
-        st.dataframe(df_csv.head(5), width='stretch')
-        
-        # Convertir en format texte pour le parser
-        donnees_texte = csv_to_text_format(df_csv)
-        
-        # Stocker le DataFrame original pour l'enrichissement météo
-        st.session_state['df_csv_original'] = df_csv
-        
-        # Bouton Analyser
-        if st.button("🔍 Analyser", type="primary", use_container_width=True, key="analyze_file"):
-            afficher_analyse(donnees_texte, source="fichier")
-    except Exception as e:
-        st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
-        st.info("💡 Assure-toi que ton fichier (CSV ou Excel) contient les colonnes : Date, Activité, Durée, Distance")
 
 
 # Fonction pour convertir un DataFrame en CSV string pour le contexte IA
