@@ -4,7 +4,6 @@ Analyse des données Strava avec feedback sarcastique par GPT-5-nano
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import re
 import os
@@ -543,21 +542,32 @@ with col2:
 
         if auth_url:
             st.info("👤 Connecte-toi avec ton compte Strava pour accéder à tes activités")
-            st.caption("Si rien ne se passe au clic, copie l'URL ci-dessous et ouvre-la dans le même onglet.")
-
-            # Lien OAuth (target _top pour sortir d'un éventuel iframe)
+            
+            # Lien OAuth simple et visible (fonctionne sur Streamlit Cloud)
             st.markdown(
-                f'<a href="{auth_url}" target="_top" '
-                f'style="display: inline-block; padding: 10px 20px; '
-                f'background-color: #FC4C02; color: white; text-decoration: none; '
-                f'border-radius: 5px; font-family: sans-serif; font-weight: bold;">'
-                f'Connect with Strava</a>',
+                f"""
+                <div style="margin: 20px 0; text-align: center;">
+                    <a href="{auth_url}" target="_top" 
+                       style="display: inline-block; padding: 14px 28px; 
+                              background-color: #FC4C02; color: white; 
+                              text-decoration: none; border-radius: 8px; 
+                              font-size: 18px; font-weight: bold; 
+                              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                              transition: all 0.2s;">
+                        🔐 Se connecter avec Strava
+                    </a>
+                </div>
+                <style>
+                    a:hover {{
+                        background-color: #E04302 !important;
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+                    }}
+                </style>
+                """,
                 unsafe_allow_html=True
             )
-
-            # URL à copier si besoin
-            st.text_input("OAuth URL (copier-coller si besoin)", value=auth_url, key="oauth_url_display")
-            st.caption("Ouvre ce lien dans le même onglet pour éviter les boucles OAuth.")
+            st.caption("Clique sur le lien ci-dessus pour autoriser l'accès à tes activités Strava.")
 
             # Aide de dépannage
             with st.expander("🔧 Problème de connexion ? (Lire si erreur)"):
