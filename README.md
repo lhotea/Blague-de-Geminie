@@ -104,7 +104,11 @@ Blague-de-Geminie/
 ├── blague.py                       # Script de test OpenAI simple
 ├── get_token.py                    # Script legacy (obsolète)
 ├── requirements.txt                # Dépendances Python
-├── ENV_EXAMPLE.txt                 # Exemple de configuration
+├── Dockerfile                      # Image Docker de l'app
+├── docker-compose.yml              # Orchestration Docker locale
+├── .dockerignore                   # Fichiers exclus du build Docker
+├── .env.example                    # Template des variables d'environnement
+├── ENV_EXAMPLE.txt                 # Exemple de configuration (legacy)
 ├── OAUTH_MIGRATION.md             # Guide de migration OAuth
 ├── GUIDE_STREAMLIT.md             # Guide Streamlit
 ├── tests/                          # Suite de tests
@@ -159,7 +163,67 @@ pytest tests/test_openai_integration.py -v
 - **[tests/README.md](tests/README.md)** : Documentation de la suite de tests
 - **[ENV_EXAMPLE.txt](ENV_EXAMPLE.txt)** : Exemple de configuration
 
+## 🐳 Déploiement avec Docker
+
+### Prérequis
+- Docker et Docker Compose installés
+
+### Configuration
+
+1. **Copie le template de configuration** :
+```bash
+cp .env.example .env
+```
+
+2. **Édite `.env`** avec tes vraies clés :
+```env
+STRAVA_CLIENT_ID=ton_client_id
+STRAVA_CLIENT_SECRET=ton_client_secret
+REDIRECT_URI=http://localhost:8501
+OPENAI_API_KEY=sk-xxx
+```
+
+### Lancement Local avec Docker Compose
+
+```bash
+# Build et lancement
+docker-compose up --build
+
+# En arrière-plan
+docker-compose up -d --build
+
+# Arrêter
+docker-compose down
+```
+→ L'app sera disponible sur http://localhost:8501
+
+### Lancement Manuel avec Docker
+
+```bash
+# Build l'image
+docker build -t blague-geminie .
+
+# Lancer le container
+docker run -p 8501:8501 --env-file .env blague-geminie
+```
+
+### Déploiement Cloud avec Docker
+
+Le `Dockerfile` est compatible avec la plupart des plateformes cloud :
+
+| Plateforme | Méthode |
+|------------|---------|
+| **Railway** | Connecte ton repo GitHub, le Dockerfile est détecté automatiquement |
+| **Render** | Crée un "Web Service" et connecte ton repo |
+| **Fly.io** | `flyctl launch` puis `flyctl deploy` |
+| **Google Cloud Run** | `gcloud run deploy --source .` |
+| **Azure Container Apps** | Via Azure CLI ou portail |
+
+**Important** : Configure les variables d'environnement dans l'interface de chaque plateforme (pas le fichier `.env`).
+
 ## 🚀 Déploiement sur Streamlit Cloud
+
+> ⚠️ Note : OAuth peut parfois causer des boucles de redirection sur Streamlit Cloud. Le déploiement Docker est plus robuste.
 
 1. Push ton code sur GitHub
 2. Va sur https://streamlit.io/cloud

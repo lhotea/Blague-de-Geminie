@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: blague-geminie
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    # Variables d'environnement (alternative à .env)
+    # environment:
+    #   - STRAVA_CLIENT_ID=xxx
+    #   - STRAVA_CLIENT_SECRET=xxx
+    #   - OPENAI_API_KEY=xxx
+    #   - REDIRECT_URI=http://localhost:8501
+    volumes:
+      # Mount le code pour hot-reload en développement
+      # Commenter cette ligne en production
+      - .:/app
+      # Exclure les fichiers sensibles et cache
+      - /app/__pycache__
+      - /app/.pytest_cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
