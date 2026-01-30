@@ -35,13 +35,35 @@ from analyse_strava import (
     generer_feedback_coach
 )
 
+# ===== HELPER POUR SECRETS =====
+
+def get_secret(key, default=None):
+    """
+    Récupère une valeur depuis st.secrets ou les variables d'environnement.
+    Utile pour le déploiement sur Railway/Docker où les secrets sont des env vars.
+    """
+    # Essayer st.secrets d'abord (Streamlit Cloud)
+    try:
+        value = st.secrets.get(key, None)
+        if value is not None:
+            return value
+    except:
+        pass
+    
+    # Fallback sur les variables d'environnement (Railway/Docker)
+    return os.environ.get(key, default)
+
+def has_secret(key):
+    """Vérifie si un secret existe (dans st.secrets ou env vars)."""
+    return get_secret(key) is not None
+
 # ===== OAUTH FLOW FUNCTIONS =====
 
 def obtenir_redirect_uri():
     """Obtient l'URL de redirection de manière cohérente"""
     try:
-        # Essayer d'obtenir depuis les secrets
-        redirect_uri = st.secrets.get("REDIRECT_URI", None)
+        # Essayer d'obtenir depuis les secrets ou env vars
+        redirect_uri = get_secret("REDIRECT_URI", None)
     except:
         redirect_uri = None
 
@@ -66,7 +88,9 @@ def obtenir_redirect_uri():
 def generer_url_autorisation_strava():
     """Génère l'URL d'autorisation OAuth Strava"""
     try:
-        client_id = st.secrets["STRAVA_CLIENT_ID"]
+        client_id = get_secret("STRAVA_CLIENT_ID")
+        if not client_id:
+            return None
         redirect_uri = obtenir_redirect_uri()
 
         # Construire l'URL d'autorisation
@@ -87,8 +111,11 @@ def generer_url_autorisation_strava():
 def echanger_code_contre_token(code):
     """Échange le code d'autorisation contre un access_token"""
     try:
-        client_id = st.secrets["STRAVA_CLIENT_ID"]
-        client_secret = st.secrets["STRAVA_CLIENT_SECRET"]
+        client_id = get_secret("STRAVA_CLIENT_ID")
+        client_secret = get_secret("STRAVA_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            st.error("❌ Configuration Strava manquante")
+            return None
         redirect_uri = obtenir_redirect_uri()
 
         url = "https://www.strava.com/oauth/token"
@@ -134,8 +161,10 @@ def echanger_code_contre_token(code):
 def rafraichir_access_token(refresh_token):
     """Rafraîchit l'access_token avec un refresh_token"""
     try:
-        client_id = st.secrets["STRAVA_CLIENT_ID"]
-        client_secret = st.secrets["STRAVA_CLIENT_SECRET"]
+        client_id = get_secret("STRAVA_CLIENT_ID")
+        client_secret = get_secret("STRAVA_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            return None
 
         url = "https://www.strava.com/oauth/token"
         payload = {
@@ -194,9 +223,11 @@ if "code" in st.query_params:
 def obtenir_access_token_strava():
     """Obtient un access_token frais depuis Strava en utilisant le refresh_token"""
     try:
-        client_id = st.secrets["STRAVA_CLIENT_ID"]
-        client_secret = st.secrets["STRAVA_CLIENT_SECRET"]
-        refresh_token = st.secrets["STRAVA_REFRESH_TOKEN"]
+        client_id = get_secret("STRAVA_CLIENT_ID")
+        client_secret = get_secret("STRAVA_CLIENT_SECRET")
+        refresh_token = get_secret("STRAVA_REFRESH_TOKEN")
+        if not client_id or not client_secret or not refresh_token:
+            return None
         
         url = "https://www.strava.com/oauth/token"
         payload = {
@@ -611,7 +642,7 @@ else:
 
             # Afficher les informations de debug
             try:
-                client_id = st.secrets.get("STRAVA_CLIENT_ID", "NON CONFIGURÉ")
+                client_id = get_secret("STRAVA_CLIENT_ID") or "NON CONFIGURÉ"
                 redirect_uri = obtenir_redirect_uri()
                 st.code(f"""
 Client ID: {client_id}
@@ -1070,8 +1101,11 @@ Réponds aux questions de l'athlète de manière précise, motivante et un peu s
         with st.chat_message("assistant"):
             with st.spinner("Le coach réfléchit..."):
                 try:
-                    # Récupérer la clé API depuis st.secrets (comme dans analyse_strava.py)
-                    api_key = st.secrets["OPENAI_API_KEY"]
+                    # Récupérer la clé API depuis st.secrets ou env vars
+                    api_key = get_secret("OPENAI_API_KEY")
+                    if not api_key:
+                        st.error("❌ Clé API OpenAI non configurée")
+                        st.stop()
                     client = OpenAI(api_key=api_key)
                     
                     response = client.chat.completions.create(

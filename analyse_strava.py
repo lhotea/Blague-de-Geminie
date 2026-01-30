@@ -14,6 +14,17 @@ from dotenv import load_dotenv
 import streamlit as st
 
 
+def get_secret(key, default=None):
+    """Récupère une valeur depuis st.secrets ou les variables d'environnement."""
+    try:
+        value = st.secrets.get(key, None)
+        if value is not None:
+            return value
+    except:
+        pass
+    return os.environ.get(key, default)
+
+
 def parser_donnees_strava(texte_brut):
     """
     Parse le texte brut des données Strava et retourne un DataFrame pandas.
@@ -364,12 +375,10 @@ Statistiques :
 Sois TRÈS sarcastique, drôle, avec de l'humour piquant. Utilise des métaphores, des comparaisons amusantes. Sois direct mais constructif. Mentionne les points forts et les points à améliorer de manière humoristique et mémorable."""
 
     try:
-        # Charger la clé API depuis .env
-        #load_dotenv()
-        # api_key = os.getenv("OPENAI_API_KEY")
-        # Remplace l'ancienne ligne client = OpenAI(api_key="sk-...") par :
-        #
-        api_key = st.secrets["OPENAI_API_KEY"]
+        # Charger la clé API depuis secrets ou env vars
+        api_key = get_secret("OPENAI_API_KEY")
+        if not api_key:
+            return "❌ Clé API OpenAI non configurée"
         client = OpenAI(api_key=api_key)
         print("\n🤖 Demande de feedback au coach GPT...")
         response = client.chat.completions.create(
