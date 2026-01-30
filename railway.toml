@@ -3,7 +3,6 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-healthcheckPath = "/_stcore/health"
-healthcheckTimeout = 300
+# Pas de healthcheck custom - Railway vérifie juste que le port répond
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

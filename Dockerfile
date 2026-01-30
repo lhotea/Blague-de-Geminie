@@ -23,11 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copier le code de l'application
 COPY . .
 
-# Exposer le port Streamlit
+# Port par défaut (Railway définit $PORT dynamiquement)
+ENV PORT=8501
 EXPOSE 8501
 
-# Healthcheck pour vérifier que l'app répond
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
-
-# Commande de démarrage
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+# Commande de démarrage (utilise $PORT pour Railway)
+CMD streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
