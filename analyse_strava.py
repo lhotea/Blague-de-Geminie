@@ -400,7 +400,7 @@ Sois TRÈS sarcastique, drôle, avec de l'humour piquant. Utilise des métaphore
         return feedback
     except Exception as e:
         print(f"❌ Erreur lors de la génération du feedback : {e}")
-        return None
+        return f"❌ Erreur OpenAI : {e}"
 
 
 def comparer_activites(df, activite1='Course à pied', activite2='Ski de fond'):
